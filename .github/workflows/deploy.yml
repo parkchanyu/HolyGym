@@ -1,0 +1,54 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # main 브랜치에 푸시될 때마다 자동 실행
+
+  # GitHub Pages 설정 페이지에서 수동으로도 트리거할 수 있도록 허용
+  workflow_dispatch:
+
+# GITHUB_TOKEN의 권한 설정 (GitHub Pages 배포에 필수)
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시 실행 제어 (진행 중인 배포가 있다면 취소하고 최신 배포 실행)
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist' # 빌드된 정적 파일들이 모이는 폴더
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
