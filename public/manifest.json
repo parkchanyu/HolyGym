@@ -9,7 +9,8 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/HolyGym/",
+  "scope": "/HolyGym/",
   "background_color": "#09090b",
   "theme_color": "#09090b",
   "display": "standalone",
