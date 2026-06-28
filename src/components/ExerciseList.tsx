@@ -8,23 +8,27 @@ import {
   Plus, Search, Filter, Dumbbell, Trash2, Check, Sparkles, 
   HelpCircle, CheckCircle2, Flame, Trophy, Info
 } from 'lucide-react';
-import { Exercise, ExerciseCategory, ExerciseType } from '../types';
+import { Exercise, ExerciseCategory, ExerciseType, CompletedWorkout } from '../types';
 import { DEFAULT_EXERCISES } from '../data/exercises';
+import ExerciseDetail from './ExerciseDetail';
 
 interface ExerciseListProps {
   customExercises: Exercise[];
   onAddCustomExercise: (exercise: Exercise) => void;
   onDeleteCustomExercise: (exerciseId: string) => void;
+  completedWorkouts: CompletedWorkout[];
 }
 
 export default function ExerciseList({
   customExercises,
   onAddCustomExercise,
-  onDeleteCustomExercise
+  onDeleteCustomExercise,
+  completedWorkouts
 }: ExerciseListProps) {
   // Navigation / Filter State
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | '전체'>('전체');
+  const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<Exercise | null>(null);
 
   // Custom exercise form State
   const [isCreatingCustom, setIsCreatingCustom] = useState<boolean>(false);
@@ -71,6 +75,16 @@ export default function ExerciseList({
     setCustomName('');
     setIsCreatingCustom(false);
   };
+
+  if (selectedExerciseDetail) {
+    return (
+      <ExerciseDetail 
+        exercise={selectedExerciseDetail}
+        onBack={() => setSelectedExerciseDetail(null)}
+        completedWorkouts={completedWorkouts}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12 animate-fade-in" id="exercise-list-tab-view">
@@ -217,7 +231,8 @@ export default function ExerciseList({
           return (
             <div 
               key={ex.id}
-              className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-5 hover:border-zinc-700 transition flex flex-col justify-between h-full group shadow-sm"
+              onClick={() => setSelectedExerciseDetail(ex)}
+              className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-5 hover:border-brand-neon/50 cursor-pointer hover:shadow-lg hover:shadow-brand-neon/5 active:scale-[0.985] transition-all duration-300 flex flex-col justify-between h-full group shadow-sm"
             >
               <div className="space-y-2.5">
                 <div className="flex items-start justify-between gap-4">
@@ -243,14 +258,15 @@ export default function ExerciseList({
               </div>
 
               <div className="flex items-center justify-between mt-5 pt-3 border-t border-zinc-900">
-                <div className="flex items-center gap-1 text-[10px] text-zinc-500 font-semibold uppercase tracking-wide">
+                <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-semibold uppercase tracking-wide group-hover:text-brand-neon transition">
                   <Info className="w-3.5 h-3.5 stroke-[1.5]" />
-                  <span>루틴 설계 반영 가능</span>
+                  <span>자세 정보 및 기록 분석</span>
                 </div>
 
                 {ex.isCustom && (
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (confirm(`'${ex.name}' 종목을 정말 삭제할까요? 이 종목이 포함된 루틴의 세팅이 손상될 수 있습니다.`)) {
                         onDeleteCustomExercise(ex.id);
                       }

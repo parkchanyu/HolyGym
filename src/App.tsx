@@ -258,6 +258,7 @@ export default function App() {
                   customExercises={customExercises}
                   onAddCustomExercise={handleAddCustomExercise}
                   onDeleteCustomExercise={handleDeleteCustomExercise}
+                  completedWorkouts={completedWorkouts}
                 />
               )}
             </motion.div>
