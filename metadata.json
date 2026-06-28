@@ -1,0 +1,6 @@
+{
+  "name": "HolyGym",
+  "description": "사용자가 운동 루틴을 직접 설계하고 세트별 성과를 기록하며, 데이터 시각화를 통해 성장을 한눈에 분석할 수 있는 커스텀 피트니스 운동 일지 및 루틴 플래너 HolyGym 애플리케이션입니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

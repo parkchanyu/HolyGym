@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Rounded Background -->
+  <rect width="512" height="512" rx="140" fill="#09090b" />
+  
+  <!-- Outer Glow Circle -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#C1FF72" stroke-width="4" opacity="0.1" />
+  
+  <!-- Cursive H path -->
+  <path d="M 150 160 
+           C 130 160, 120 180, 120 210 
+           C 120 260, 160 360, 200 360 
+           C 220 360, 240 330, 240 280 
+           C 240 210, 210 150, 260 150 
+           C 300 150, 320 190, 330 250 
+           C 340 310, 350 360, 390 360 
+           C 410 360, 420 340, 420 310" 
+        fill="none" 
+        stroke="#C1FF72" 
+        stroke-width="38" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" />
+        
+  <!-- Accent dots or glowing nodes -->
+  <circle cx="150" cy="160" r="14" fill="#C1FF72" />
+  <circle cx="420" cy="310" r="14" fill="#C1FF72" />
+</svg>
