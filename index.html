@@ -4,12 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HolyGym | 똑똑한 나만의 운동기록 및 루틴 플래너</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" id="apple-touch-icon" href="favicon.svg" />
+    <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#09090b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      (function() {
+        // High-resolution SVG of our custom neon cursive "H" logo
+        const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+          <rect width="512" height="512" rx="140" fill="#09090b" />
+          <circle cx="256" cy="256" r="210" fill="none" stroke="#C1FF72" stroke-width="4" opacity="0.1" />
+          <path d="M 150 160 C 130 160, 120 180, 120 210 C 120 260, 160 360, 200 360 C 220 360, 240 330, 240 280 C 240 210, 210 150, 260 150 C 300 150, 320 190, 330 250 C 340 310, 350 360, 390 360 C 410 360, 420 340, 420 310" fill="none" stroke="#C1FF72" stroke-width="38" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="150" cy="160" r="14" fill="#C1FF72" />
+          <circle cx="420" cy="310" r="14" fill="#C1FF72" />
+        </svg>`;
+
+        const img = new Image();
+        // Cross-browser safe Base64 encoding of SVG
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = 180; // Standard iOS Apple Touch Icon dimensions
+          canvas.height = 180;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, 180, 180);
+            try {
+              const pngDataUrl = canvas.toDataURL('image/png');
+              const appleTouchIcon = document.getElementById('apple-touch-icon');
+              if (appleTouchIcon) {
+                appleTouchIcon.href = pngDataUrl;
+              }
+            } catch (e) {
+              console.error('Failed to convert SVG to apple-touch-icon PNG', e);
+            }
+          }
+        };
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
