@@ -42,7 +42,14 @@ export default function WorkoutSession({
   const [initialRestTime, setInitialRestTime] = useState<number>(60); // default 60s rest
   const [isRestTimerActive, setIsRestTimerActive] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [soundPreset, setSoundPreset] = useState<'arpeggio' | 'retro' | 'beep' | 'ping'>('arpeggio');
   const [showRestCompleteAlert, setShowRestCompleteAlert] = useState<boolean>(false);
+
+  // States for interactive Plate & 1RM Calculator
+  const [expandedCalcExerciseId, setExpandedCalcExerciseId] = useState<string | null>(null);
+  const [calcWeight, setCalcWeight] = useState<number>(60);
+  const [calcReps, setCalcReps] = useState<number>(5);
+  const [calcBarWeight, setCalcBarWeight] = useState<number>(20);
 
   // Workout finished summary recap modal overlay
   const [recapWorkout, setRecapWorkout] = useState<CompletedWorkout | null>(null);
@@ -142,10 +149,22 @@ export default function WorkoutSession({
 
       const now = audioCtx.currentTime;
       if (isEndChime) {
-        // Clear, pleasant C-major arpeggio for timer finish
-        playNote(523.25, now, 0.12, 0.18); // C5
-        playNote(659.25, now + 0.12, 0.12, 0.18); // E5
-        playNote(783.99, now + 0.24, 0.35, 0.22); // G5
+        if (soundPreset === 'arpeggio') {
+          playNote(523.25, now, 0.12, 0.18); // C5
+          playNote(659.25, now + 0.12, 0.12, 0.18); // E5
+          playNote(783.99, now + 0.24, 0.35, 0.22); // G5
+        } else if (soundPreset === 'retro') {
+          playNote(523.25, now, 0.08, 0.15); // C5
+          playNote(587.33, now + 0.08, 0.08, 0.15); // D5
+          playNote(659.25, now + 0.16, 0.08, 0.15); // E5
+          playNote(880.00, now + 0.24, 0.3, 0.2); // A5
+        } else if (soundPreset === 'beep') {
+          playNote(880.00, now, 0.1, 0.15); // A5
+          playNote(880.00, now + 0.15, 0.1, 0.15); // A5
+        } else {
+          // ping
+          playNote(1046.50, now, 0.4, 0.2); // C6
+        }
       } else {
         // Low cozy sound when checking a set
         playNote(523.25, now, 0.12, 0.12); // C5
@@ -576,14 +595,273 @@ export default function WorkoutSession({
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => handleDeleteExerciseFromSession(ex.id)}
-                      className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-950 transition"
-                      title="종목 삭제"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {ex.type === 'weight_reps' && (
+                        <button
+                          onClick={() => {
+                            if (expandedCalcExerciseId === ex.id) {
+                              setExpandedCalcExerciseId(null);
+                            } else {
+                              setExpandedCalcExerciseId(ex.id);
+                              const firstSet = ex.sets[0];
+                              setCalcWeight(firstSet?.weight || 60);
+                              setCalcReps(firstSet?.reps || 5);
+                              setCalcBarWeight(20);
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition flex items-center gap-1 ${
+                            expandedCalcExerciseId === ex.id
+                              ? 'bg-sky-500/15 border-sky-500/30 text-sky-400'
+                              : 'bg-zinc-950 border-zinc-850 text-zinc-400 hover:text-sky-400 hover:border-sky-500/30'
+                          }`}
+                          title="바벨 플레이트 및 1RM 계산기 열기"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>계산기</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleDeleteExerciseFromSession(ex.id)}
+                        className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-950 transition"
+                        title="종목 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Collapsible Plate & 1RM Calculator */}
+                  {expandedCalcExerciseId === ex.id && ex.type === 'weight_reps' && (
+                    <div className="bg-zinc-950 border border-zinc-850 rounded-2xl p-4 space-y-4 animate-scale-in">
+                      <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                        <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          무게 플레이트 & 1RM 스마트 계산기
+                        </span>
+                        <button 
+                          onClick={() => setExpandedCalcExerciseId(null)}
+                          className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300"
+                        >
+                          닫기
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* 1. Target Weight & Plate Selector */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-zinc-300">🏋️ 바벨 플레이트 계산기</h4>
+                          
+                          {/* Inputs: Target Weight and Bar Weight */}
+                          <div className="flex gap-2 items-center">
+                            <div className="flex-1">
+                              <label className="text-[9px] text-zinc-500 font-bold block mb-1">목표 중량 (kg)</label>
+                              <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="2.5"
+                                  value={calcWeight}
+                                  onChange={(e) => setCalcWeight(parseFloat(e.target.value) || 0)}
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-zinc-200 focus:outline-none"
+                                />
+                                <span className="text-[10px] text-zinc-500">kg</span>
+                              </div>
+                            </div>
+
+                            <div className="flex-1">
+                              <label className="text-[9px] text-zinc-500 font-bold block mb-1">바벨 무게 (kg)</label>
+                              <select
+                                value={calcBarWeight}
+                                onChange={(e) => setCalcBarWeight(parseInt(e.target.value) || 0)}
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-sky-500"
+                              >
+                                <option value="20">20 kg (표준 바)</option>
+                                <option value="15">15 kg (여성 바)</option>
+                                <option value="10">10 kg (경량 바)</option>
+                                <option value="0">0 kg (머신/덤벨)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Quick plus/minus weight buttons */}
+                          <div className="flex gap-1">
+                            {[-10, -5, -2.5, 2.5, 5, 10].map((val) => (
+                              <button
+                                key={val}
+                                onClick={() => setCalcWeight(prev => Math.max(0, prev + val))}
+                                className="flex-1 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-[10px] font-mono font-bold rounded-lg border border-zinc-805 active:scale-95 transition"
+                              >
+                                {val > 0 ? `+${val}` : val}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Render visual plates loaded on the bar */}
+                          <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-900 flex flex-col items-center justify-center space-y-2 min-h-[90px]">
+                            {(() => {
+                              const getPlatesCombination = (target: number, bar: number) => {
+                                if (target <= bar) return [];
+                                let remPerSide = (target - bar) / 2;
+                                const availablePlates = [20, 15, 10, 5, 2.5, 1.25];
+                                const platesNeeded: number[] = [];
+                                
+                                for (const plate of availablePlates) {
+                                  while (remPerSide >= plate) {
+                                    platesNeeded.push(plate);
+                                    remPerSide = Math.round((remPerSide - plate) * 100) / 100;
+                                  }
+                                }
+                                return platesNeeded;
+                              };
+
+                              const plates = getPlatesCombination(calcWeight, calcBarWeight);
+                              if (plates.length === 0) {
+                                return (
+                                  <p className="text-[10px] text-zinc-500 text-center font-medium">
+                                    바벨 무게 이하이거나 유효하지 않은 중량입니다.
+                                  </p>
+                                );
+                              }
+                              return (
+                                <>
+                                  <div className="text-[10px] font-bold text-zinc-400">
+                                    양쪽에 동일하게 장착할 플레이트 (한쪽 기준):
+                                  </div>
+                                  
+                                  {/* Barbell sleeve illustration */}
+                                  <div className="flex items-center justify-center gap-1.5 w-full py-1">
+                                    {/* Bar shaft indicator */}
+                                    <div className="w-6 h-2 bg-zinc-700 rounded-l" />
+                                    <div className="w-1.5 h-6 bg-zinc-500" title="바벨 칼라" />
+                                    
+                                    {/* Plates list */}
+                                    <div className="flex items-center gap-0.5">
+                                      {plates.map((plate, pIdx) => {
+                                        // Dynamic sizing and styling for visual plates
+                                        let sizeClass = "h-12 w-3 text-[9px]";
+                                        let colorClass = "bg-zinc-600 border-zinc-500 text-zinc-100";
+                                        
+                                        if (plate === 20) {
+                                          sizeClass = "h-14 w-3.5 text-[9px]";
+                                          colorClass = "bg-red-500/20 border-red-500/40 text-red-300";
+                                        } else if (plate === 15) {
+                                          sizeClass = "h-12 w-3 text-[8px]";
+                                          colorClass = "bg-amber-500/20 border-amber-500/40 text-amber-300";
+                                        } else if (plate === 10) {
+                                          sizeClass = "h-10 w-3 text-[8px]";
+                                          colorClass = "bg-green-500/20 border-green-500/40 text-green-300";
+                                        } else if (plate === 5) {
+                                          sizeClass = "h-8 w-2.5 text-[7px]";
+                                          colorClass = "bg-zinc-400/20 border-zinc-400/40 text-zinc-200";
+                                        } else if (plate === 2.5) {
+                                          sizeClass = "h-6.5 w-2 text-[6px]";
+                                          colorClass = "bg-sky-500/20 border-sky-500/40 text-sky-300";
+                                        } else {
+                                          sizeClass = "h-5 w-1.5 text-[5px]";
+                                          colorClass = "bg-purple-500/20 border-purple-500/40 text-purple-300";
+                                        }
+
+                                        return (
+                                          <div
+                                            key={pIdx}
+                                            className={`rounded-sm border flex items-center justify-center font-mono font-black select-none ${sizeClass} ${colorClass}`}
+                                            title={`${plate}kg 플레이트`}
+                                          >
+                                            <span className="origin-center -rotate-90 scale-90">{plate}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="w-10 h-1 bg-zinc-600 rounded-r" />
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-1 items-center justify-center">
+                                    {Array.from(new Set(plates)).map((uniquePlate) => {
+                                      const count = plates.filter(p => p === uniquePlate).length;
+                                      return (
+                                        <span key={uniquePlate} className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[9px] font-mono font-bold text-zinc-400">
+                                          {uniquePlate}kg x {count}개
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* 2. 1RM & Rep Range Estimations */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-zinc-300">📈 추정 1RM & 반복수 계산기</h4>
+                          
+                          {/* Inputs: Lift Weight and Reps for 1RM estimate */}
+                          <div className="flex gap-2 items-center">
+                            <div className="flex-1">
+                              <label className="text-[9px] text-zinc-500 font-bold block mb-1">수행 중량 (kg)</label>
+                              <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="2.5"
+                                  value={calcWeight}
+                                  onChange={(e) => setCalcWeight(parseFloat(e.target.value) || 0)}
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-zinc-200 focus:outline-none"
+                                />
+                                <span className="text-[10px] text-zinc-500">kg</span>
+                              </div>
+                            </div>
+
+                            <div className="flex-1">
+                              <label className="text-[9px] text-zinc-500 font-bold block mb-1">반복 횟수 (Reps)</label>
+                              <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="30"
+                                  value={calcReps}
+                                  onChange={(e) => setCalcReps(parseInt(e.target.value) || 1)}
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-zinc-200 focus:outline-none"
+                                />
+                                <span className="text-[10px] text-zinc-500">회</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Calculated Estimated 1RM block */}
+                          {(() => {
+                            const est1RM = Math.round(calcWeight / (1.0278 - 0.0278 * calcReps));
+                            return (
+                              <div className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-900 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] text-zinc-500 font-black uppercase tracking-wider">추정 1RM (1회 최대 중량)</span>
+                                  <span className="text-xs font-mono font-black text-brand-neon">{est1RM} kg</span>
+                                </div>
+                                <div className="space-y-1.5 pt-1">
+                                  <div className="flex justify-between text-[9px] text-zinc-500 font-bold border-b border-zinc-900 pb-1">
+                                    <span>목표 반복수</span>
+                                    <span>예상 수행 가능 중량</span>
+                                  </div>
+                                  {[1, 3, 5, 8, 10, 12].map((r) => {
+                                    // Estimated weights using coefficients
+                                    const coeffMap: Record<number, number> = { 1: 1, 3: 0.93, 5: 0.89, 8: 0.81, 10: 0.75, 12: 0.70 };
+                                    const estWeight = Math.round(est1RM * (coeffMap[r] || 0.70) * 2) / 2; // round to nearest 0.5kg
+                                    return (
+                                      <div key={r} className="flex justify-between text-[10px] font-mono">
+                                        <span className="text-zinc-400 font-bold">{r}회 ({(coeffMap[r]*100).toFixed(0)}%)</span>
+                                        <span className="text-zinc-200 font-black">{estWeight} kg</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Sets log list */}
                   <div className="space-y-2">
@@ -762,6 +1040,47 @@ export default function WorkoutSession({
                     }`}
                   >
                     {sec}초
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sound preset customizer row */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">휴식 종료 알림음 종류</label>
+                <button
+                  onClick={() => {
+                    const prevSound = soundEnabled;
+                    setSoundEnabled(true);
+                    setTimeout(() => {
+                      playBeepChime(true);
+                      setSoundEnabled(prevSound);
+                    }, 50);
+                  }}
+                  className="text-[9px] font-extrabold text-brand-neon bg-brand-neon/10 border border-brand-neon/20 px-2 py-0.5 rounded-md hover:bg-brand-neon hover:text-zinc-950 transition active:scale-95"
+                  title="알림음 재생 테스트"
+                >
+                  🔊 소리 테스트
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { id: 'arpeggio', label: '화음' },
+                  { id: 'retro', label: '레트로' },
+                  { id: 'beep', label: '비프' },
+                  { id: 'ping', label: '크리스탈' }
+                ].map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setSoundPreset(preset.id as any)}
+                    className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
+                      soundPreset === preset.id
+                        ? 'bg-brand-neon/15 border-brand-neon/30 text-brand-neon font-black'
+                        : 'bg-zinc-950 border-zinc-850 text-zinc-400 hover:border-zinc-700'
+                    }`}
+                  >
+                    {preset.label}
                   </button>
                 ))}
               </div>

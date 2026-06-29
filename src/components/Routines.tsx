@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { 
   Plus, Edit2, Trash2, ArrowUp, ArrowDown, Search, Filter, Dumbbell, 
-  ChevronRight, Save, X, Sparkles, CheckCircle2, ChevronLeft, Eye
+  ChevronRight, Save, X, Sparkles, CheckCircle2, ChevronLeft, Eye,
+  Download, Upload, Copy
 } from 'lucide-react';
 import { Routine, RoutineExercise, WorkoutSet, Exercise, ExerciseCategory, ExerciseType } from '../types';
 import { DEFAULT_EXERCISES } from '../data/exercises';
@@ -32,6 +33,12 @@ export default function Routines({
   // Exercise catalog search & filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | '전체'>('전체');
+
+  // Backup & Restore states
+  const [backupJson, setBackupJson] = useState<string>('');
+  const [importJson, setImportJson] = useState<string>('');
+  const [activeBackupTab, setActiveBackupTab] = useState<'export' | 'import' | null>(null);
+  const [copiedBackup, setCopiedBackup] = useState<boolean>(false);
 
   // Combine default exercises with custom user-created exercises
   const allExercises = [...DEFAULT_EXERCISES, ...customExercises];
@@ -596,6 +603,175 @@ export default function Routines({
                 <strong className="text-zinc-200">순서 배치:</strong> 체력 소모가 많은 <span className="text-brand-neon font-bold">복합 다관절 운동</span>(스쿼트, 데드리프트, 벤치프레스)을 앞쪽에 배치하는 것이 안전하고 효과적입니다.
               </li>
             </ul>
+          </div>
+
+          {/* Backup & Restore Panel */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+            <h3 className="font-bold text-zinc-200 text-sm flex items-center gap-1.5 uppercase font-display">
+              <Save className="w-4 h-4 text-brand-neon" />
+              데이터 백업 및 복원
+            </h3>
+            <p className="text-[11px] text-zinc-500 leading-relaxed font-semibold">
+              브라우저 캐시 삭제 시 소중한 루틴과 운동 일지가 사라질 수 있습니다. 안전하게 보관하거나 다른 기기로 데이터를 이동하세요.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setActiveBackupTab(activeBackupTab === 'export' ? null : 'export');
+                  // Generate export JSON
+                  const r = localStorage.getItem('flik_routines') || '[]';
+                  const w = localStorage.getItem('flik_completed_workouts') || '[]';
+                  const c = localStorage.getItem('flik_custom_exercises') || '[]';
+                  const packageObj = {
+                    version: 1,
+                    timestamp: new Date().toISOString(),
+                    routines: JSON.parse(r),
+                    completedWorkouts: JSON.parse(w),
+                    customExercises: JSON.parse(c)
+                  };
+                  setBackupJson(JSON.stringify(packageObj, null, 2));
+                  setCopiedBackup(false);
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl border text-[10px] sm:text-xs font-black uppercase tracking-tighter transition flex items-center justify-center gap-1.5 ${
+                  activeBackupTab === 'export'
+                    ? 'bg-brand-neon text-zinc-950 border-brand-neon'
+                    : 'bg-zinc-950 border-zinc-850 text-zinc-300 hover:border-zinc-750'
+                }`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                백업 내보내기
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveBackupTab(activeBackupTab === 'import' ? null : 'import');
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl border text-[10px] sm:text-xs font-black uppercase tracking-tighter transition flex items-center justify-center gap-1.5 ${
+                  activeBackupTab === 'import'
+                    ? 'bg-sky-500 text-white border-sky-500'
+                    : 'bg-zinc-950 border-zinc-850 text-zinc-300 hover:border-zinc-750'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                백업 복원하기
+              </button>
+            </div>
+
+            {/* Export Section */}
+            {activeBackupTab === 'export' && (
+              <div className="space-y-3 pt-1 animate-scale-in">
+                <textarea
+                  readOnly
+                  value={backupJson}
+                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl p-3 text-[10px] font-mono text-zinc-400 h-32 focus:outline-none focus:border-brand-neon"
+                />
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(backupJson);
+                      setCopiedBackup(true);
+                      setTimeout(() => setCopiedBackup(false), 2000);
+                    }}
+                    className="flex-1 py-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 text-[10px] font-bold text-zinc-200 rounded-lg flex items-center justify-center gap-1 active:scale-95 transition"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    {copiedBackup ? '복사 완료!' : '코드 클립보드 복사'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      try {
+                        const blob = new Blob([backupJson], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `HolyGym_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        alert('파일 다운로드에 실패했습니다. 코드를 복사해주세요.');
+                      }
+                    }}
+                    className="flex-1 py-2 bg-brand-neon/10 hover:bg-brand-neon/20 border border-brand-neon/20 text-[10px] font-bold text-brand-neon rounded-lg flex items-center justify-center gap-1 active:scale-95 transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    JSON 파일로 저장
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Import Section */}
+            {activeBackupTab === 'import' && (
+              <div className="space-y-3 pt-1 animate-scale-in">
+                <p className="text-[10px] text-amber-500 font-bold leading-relaxed">
+                  ⚠️ 주의: 새로운 백업 데이터를 복원하면 현재 작성된 모든 루틴과 이전 운동 기록들이 즉시 삭제되고 대체됩니다. 반드시 기존 데이터를 보관해두세요.
+                </p>
+                
+                <textarea
+                  placeholder="여기에 백업한 JSON 텍스트 코드를 붙여넣으세요..."
+                  value={importJson}
+                  onChange={(e) => setImportJson(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-850 rounded-xl p-3 text-[10px] font-mono text-zinc-400 h-32 focus:outline-none focus:border-sky-500"
+                />
+
+                {/* File picker alternative */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] text-zinc-500 font-bold block">또는 백업 JSON 파일 업로드:</label>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (evt) => {
+                        const content = evt.target?.result as string;
+                        setImportJson(content);
+                      };
+                      reader.readAsText(file);
+                    }}
+                    className="block w-full text-[10px] text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-black file:bg-zinc-950 file:text-zinc-300 hover:file:bg-zinc-900 cursor-pointer"
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (!importJson.trim()) {
+                      alert('복원할 백업 코드를 입력하거나 파일을 선택해주세요!');
+                      return;
+                    }
+                    try {
+                      const parsed = JSON.parse(importJson);
+                      if (!parsed.routines || !parsed.completedWorkouts) {
+                        alert('유효하지 않은 백업 데이터 포맷입니다. 백업 키가 유실되었습니다.');
+                        return;
+                      }
+
+                      if (confirm('정말로 복원을 진행하시겠습니까? 현재 브라우저의 모든 운동 기록이 백업 시점으로 즉시 교체되며 되돌릴 수 없습니다.')) {
+                        localStorage.setItem('flik_routines', JSON.stringify(parsed.routines));
+                        localStorage.setItem('flik_completed_workouts', JSON.stringify(parsed.completedWorkouts));
+                        if (parsed.customExercises) {
+                          localStorage.setItem('flik_custom_exercises', JSON.stringify(parsed.customExercises));
+                        }
+                        alert('🎉 백업 복원이 완벽하게 처리되었습니다! 새 데이터를 반영하기 위해 앱을 다시 시작합니다.');
+                        window.location.reload();
+                      }
+                    } catch (err) {
+                      alert('JSON 코드 분석에 실패했습니다. 원본 코드를 완전하게 붙여넣었는지 확인해주세요.');
+                    }
+                  }}
+                  className="w-full py-2 bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-black uppercase tracking-wider rounded-lg active:scale-95 transition"
+                >
+                  데이터 복원 즉시 실행
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
