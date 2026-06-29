@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, Pause, StopCircle, Plus, Trash2, X, PlusCircle, AlertTriangle,
   RotateCcw, Sparkles, Check, ChevronRight, Clock, Award, Flame, Dumbbell,
@@ -41,6 +42,7 @@ export default function WorkoutSession({
   const [initialRestTime, setInitialRestTime] = useState<number>(60); // default 60s rest
   const [isRestTimerActive, setIsRestTimerActive] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [showRestCompleteAlert, setShowRestCompleteAlert] = useState<boolean>(false);
 
   // Workout finished summary recap modal overlay
   const [recapWorkout, setRecapWorkout] = useState<CompletedWorkout | null>(null);
@@ -86,6 +88,7 @@ export default function WorkoutSession({
           if (prev <= 1) {
             clearInterval(restIntervalRef.current!);
             setIsRestTimerActive(false);
+            setShowRestCompleteAlert(true); // Alert rest complete!
             playBeepChime(true); // Alert rest timer ended!
             return 0;
           }
@@ -98,6 +101,21 @@ export default function WorkoutSession({
       if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     };
   }, [isRestTimerActive, restDuration]);
+
+  // Repeating chime and notification for rest completion
+  useEffect(() => {
+    let chimeInterval: NodeJS.Timeout | null = null;
+    if (showRestCompleteAlert && soundEnabled) {
+      playBeepChime(true);
+      // Repeat the sweet arpeggio every 4 seconds to notify the user
+      chimeInterval = setInterval(() => {
+        playBeepChime(true);
+      }, 4000);
+    }
+    return () => {
+      if (chimeInterval) clearInterval(chimeInterval);
+    };
+  }, [showRestCompleteAlert, soundEnabled]);
 
   // Synthesized audio chime using Web Audio API
   const playBeepChime = (isEndChime: boolean = false) => {
@@ -124,9 +142,10 @@ export default function WorkoutSession({
 
       const now = audioCtx.currentTime;
       if (isEndChime) {
-        // High, double chime for timer finish
-        playNote(587.33, now, 0.15, 0.15); // D5
-        playNote(880.00, now + 0.12, 0.35, 0.15); // A5
+        // Clear, pleasant C-major arpeggio for timer finish
+        playNote(523.25, now, 0.12, 0.18); // C5
+        playNote(659.25, now + 0.12, 0.12, 0.18); // E5
+        playNote(783.99, now + 0.24, 0.35, 0.22); // G5
       } else {
         // Low cozy sound when checking a set
         playNote(523.25, now, 0.12, 0.12); // C5
@@ -172,6 +191,7 @@ export default function WorkoutSession({
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
     setRestDuration(initialRestTime);
     setIsRestTimerActive(true);
+    setShowRestCompleteAlert(false); // Hide any previous alerts
   };
 
   // Modify rest timer on-the-fly (+30s or -30s)
@@ -191,6 +211,7 @@ export default function WorkoutSession({
     setIsRestTimerActive(false);
     setRestDuration(0);
     if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    setShowRestCompleteAlert(false); // Hide alert when skipped
   };
 
   // Adjust default rest duration
@@ -840,6 +861,161 @@ export default function WorkoutSession({
           </div>
         </div>
       )}
+
+      {/* Floating Sticky Rest Timer at the bottom of the screen */}
+      <AnimatePresence>
+        {isRestTimerActive && restDuration > 0 && (
+          <motion.div
+            initial={{ y: 80, x: '-50%', opacity: 0 }}
+            animate={{ y: 0, x: '-50%', opacity: 1 }}
+            exit={{ y: 80, x: '-50%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+            className="fixed bottom-6 left-1/2 z-50 w-[94%] max-w-lg bg-zinc-950/95 border border-sky-500/30 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] shadow-sky-500/15 rounded-3xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 select-none"
+          >
+            {/* Left side: Countdown visual ring & Timer values */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+              <div className="flex items-center gap-3">
+                <div className="relative w-12 h-12 flex-shrink-0">
+                  {/* Background Track Circle */}
+                  <svg className="w-full h-full -rotate-90">
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      className="stroke-zinc-800"
+                      strokeWidth="3.5"
+                      fill="transparent"
+                    />
+                    <motion.circle
+                      cx="24"
+                      cy="24"
+                      r="20"
+                      className="stroke-sky-400"
+                      strokeWidth="3.5"
+                      fill="transparent"
+                      strokeDasharray="125.6"
+                      animate={{
+                        strokeDashoffset: 125.6 - (125.6 * restDuration) / initialRestTime,
+                      }}
+                      transition={{ duration: 0.35, ease: 'linear' }}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  {/* Pulsing clock icon in the center */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Timer className="w-5 h-5 text-sky-400 animate-pulse" />
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-400 block leading-none mb-1">
+                    휴식 타이머
+                  </span>
+                  <p className="text-2xl font-black font-mono text-zinc-100 tracking-tighter leading-none flex items-baseline gap-1">
+                    {Math.floor(restDuration / 60)}:
+                    {String(restDuration % 60).padStart(2, '0')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Sound Toggle for Mobile (if layout is wrapped, it stays on the left) */}
+              <div className="sm:hidden">
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  title={soundEnabled ? '알림음 켜짐' : '알림음 꺼짐'}
+                  className={`h-11 w-11 flex items-center justify-center rounded-xl border transition active:scale-95 ${
+                    soundEnabled
+                      ? 'bg-brand-neon/10 border-brand-neon/20 text-brand-neon'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-600'
+                  }`}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Right side: Touch controls (Minimum 44px height for touch targets) */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
+              <button
+                onClick={() => adjustRestTimer(-30)}
+                className="h-11 px-3 sm:px-4 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold font-mono text-xs rounded-xl border border-zinc-800 active:scale-95 transition flex items-center justify-center flex-1 sm:flex-none min-w-[54px]"
+              >
+                -30초
+              </button>
+
+              <button
+                onClick={handleSkipRest}
+                className="h-11 px-5 bg-sky-500 hover:bg-sky-400 text-zinc-950 font-black text-xs rounded-xl shadow-lg shadow-sky-500/15 active:scale-95 transition-all flex items-center justify-center flex-1.5 sm:flex-none min-w-[100px]"
+              >
+                휴식 건너뛰기
+              </button>
+
+              <button
+                onClick={() => adjustRestTimer(30)}
+                className="h-11 px-3 sm:px-4 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold font-mono text-xs rounded-xl border border-zinc-800 active:scale-95 transition flex items-center justify-center flex-1 sm:flex-none min-w-[54px]"
+              >
+                +30초
+              </button>
+
+              {/* Sound Toggle for Desktop */}
+              <div className="hidden sm:block sm:border-l sm:border-zinc-850 sm:pl-3 sm:ml-1.5">
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  title={soundEnabled ? '알림음 켜짐' : '알림음 꺼짐'}
+                  className={`h-11 w-11 flex items-center justify-center rounded-xl border transition active:scale-95 ${
+                    soundEnabled
+                      ? 'bg-brand-neon/10 border-brand-neon/20 text-brand-neon'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-600'
+                  }`}
+                >
+                  <Volume2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Rest Completion Floating Banner Alert */}
+      <AnimatePresence>
+        {showRestCompleteAlert && (
+          <motion.div
+            initial={{ y: 100, x: '-50%', opacity: 0 }}
+            animate={{ y: 0, x: '-50%', opacity: 1 }}
+            exit={{ y: 100, x: '-50%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 220 }}
+            className="fixed bottom-6 left-1/2 z-[100] w-[94%] max-w-md bg-zinc-950/95 border-2 border-brand-neon backdrop-blur-2xl shadow-[0_24px_60px_rgba(0,0,0,0.9),0_0_40px_rgba(57,255,20,0.15)] rounded-3xl p-5 flex flex-col items-center text-center gap-4 select-none"
+          >
+            {/* Pulsing Green Circle with Dumbbell Icon */}
+            <div className="relative flex items-center justify-center w-14 h-14 rounded-full bg-brand-neon/10 border border-brand-neon/30">
+              <div className="absolute inset-0 rounded-full bg-brand-neon/10 animate-ping opacity-75" style={{ animationDuration: '2s' }} />
+              <Dumbbell className="w-7 h-7 text-brand-neon animate-bounce" />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-brand-neon block">
+                REST TIME ENDED
+              </span>
+              <h4 className="text-xl font-black text-zinc-100 tracking-tight">
+                휴식이 종료되었습니다!
+              </h4>
+              <p className="text-sm text-zinc-400">
+                다음 세트를 멋지게 성공해볼까요?
+              </p>
+            </div>
+
+            <div className="flex gap-2 w-full mt-1">
+              <button
+                onClick={() => setShowRestCompleteAlert(false)}
+                className="h-12 w-full bg-brand-neon hover:bg-brand-neon/90 text-zinc-950 font-black text-sm rounded-xl active:scale-95 transition-all shadow-lg shadow-brand-neon/20 flex items-center justify-center gap-2"
+              >
+                <Check className="w-5 h-5 stroke-[3]" />
+                확인 (휴식 완료)
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
